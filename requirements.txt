@@ -1,3 +1,4 @@
 streamlit
 pandas
-sqlalchemy
+fpdf2
+streamlit-option-menu
