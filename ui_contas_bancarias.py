@@ -1,8 +1,8 @@
-# ui_contas_bancarias.py
+# ui_contas_bancarias.py (Versão completa com botão de exclusão)
 import streamlit as st
 import pandas as pd
 from datetime import date
-from database import add_conta_bancaria, get_saldo_contas, add_transacao_bancaria, get_data_as_dataframe
+from database import add_conta_bancaria, get_saldo_contas, add_transacao_bancaria, get_data_as_dataframe, delete_transacao_bancaria
 
 def format_brl(value):
     if isinstance(value, (int, float)):
@@ -23,7 +23,7 @@ def render_contas_bancarias():
             if st.form_submit_button("Adicionar Conta"):
                 if nome_banco:
                     add_conta_bancaria({
-                        'nome_banco': nome_banco, 'agencia': agencia, 
+                        'nome_bancario': nome_banco, 'agencia': agencia, 
                         'conta': conta, 'saldo_inicial': saldo_inicial
                     })
                     st.success(f"Conta '{nome_banco}' adicionada com sucesso!")
@@ -38,12 +38,9 @@ def render_contas_bancarias():
     if saldos_df.empty:
         st.info("Nenhuma conta bancária cadastrada. Adicione uma acima.")
     else:
-        # Garante que não tenhamos mais colunas que contas
         num_contas = len(saldos_df)
         cols = st.columns(num_contas if num_contas > 0 else 1)
-        
         for i, row in saldos_df.iterrows():
-            # Evita erro se houver mais de 'n' colunas
             col_index = i % (num_contas if num_contas > 0 else 1)
             with cols[col_index]:
                 st.metric(
@@ -61,7 +58,6 @@ def render_contas_bancarias():
             format_func=lambda x: saldos_df[saldos_df['id'] == x]['nome_banco'].iloc[0]
         )
 
-        # Lançamentos Manuais
         with st.expander("💸 Adicionar Lançamento Manual (Entrada/Saída)"):
             with st.form("form_add_transacao", clear_on_submit=True):
                 cols = st.columns(4)
@@ -77,10 +73,36 @@ def render_contas_bancarias():
                     })
                     st.success("Transação registrada!")
                     st.rerun()
-
-        # Extrato da conta selecionada
+        
+        # --- SEÇÃO DE EXTRATO ATUALIZADA ---
+        st.subheader("Extrato da Conta")
         extrato_df = get_data_as_dataframe(
-            "SELECT data, tipo, descricao, valor FROM transacoes_bancarias WHERE conta_id = ? ORDER BY data DESC, id DESC",
+            "SELECT id, data, tipo, descricao, valor FROM transacoes_bancarias WHERE conta_id = ? ORDER BY data DESC, id DESC",
             (int(conta_selecionada_id),)
         )
-        st.dataframe(extrato_df, use_container_width=True)
+        
+        if extrato_df.empty:
+            st.info("Nenhuma transação nesta conta ainda.")
+        else:
+            header_cols = st.columns([0.15, 0.15, 0.4, 0.2, 0.1])
+            header_cols[0].markdown("**Data**"); header_cols[1].markdown("**Tipo**"); header_cols[2].markdown("**Descrição**"); header_cols[3].markdown("**Valor**"); header_cols[4].markdown("**Ações**")
+            st.divider()
+
+            for _, row in extrato_df.iterrows():
+                cols = st.columns([0.15, 0.15, 0.4, 0.2, 0.1])
+                cols[0].write(pd.to_datetime(row['data']).strftime('%d/%m/%Y'))
+                cols[1].write(row['tipo'])
+                cols[2].write(row['descricao'])
+                valor_str = format_brl(row['valor'])
+                
+                if row['tipo'] == 'Entrada':
+                    cols[3].success(valor_str)
+                else:
+                    cols[3].error(f"-{valor_str}")
+                
+                # Não permite excluir o "Saldo Inicial" para manter a integridade
+                if 'Saldo Inicial' not in row['descricao']:
+                    if cols[4].button("🗑️", key=f"del_trans_{row['id']}", help="Excluir esta transação"):
+                        delete_transacao_bancaria(row['id'])
+                        st.success("Transação excluída.")
+                        st.rerun()

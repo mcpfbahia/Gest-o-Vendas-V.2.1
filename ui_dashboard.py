@@ -1,146 +1,120 @@
-# ui_dashboard.py (Versão com o card de Saldo Total em Contas)
+# ui_dashboard.py (Versão Final com alinhamento e cards de lucro)
 import streamlit as st
 from calculations import calculate_global_totals
 
-def format_currency(value):
-    """Formata um número para o padrão monetário brasileiro."""
+def format_brl(value):
     if isinstance(value, (int, float)):
         return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return "R$ 0,00"
 
-def styled_metric(title, value, icon=""):
-    """Cria um card de métrica customizado com HTML e CSS."""
+def styled_card(title, value, subtitle="", icon="", bg_color="linear-gradient(135deg, #FF8C00, #1E1E1E)"):
+    # AJUSTE: Altura ligeiramente aumentada para melhor alinhamento
     st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-title">{icon} {title}</div>
-        <div class="metric-value">{value}</div>
+    <div class="custom-card" style="background:{bg_color};">
+        <div class="card-title">{icon} {title}</div>
+        <div class="card-value">{value}</div>
+        <div class="card-subtitle">{subtitle}</div>
     </div>
     """, unsafe_allow_html=True)
-
-def styled_balance_card(title, value, background_color):
-    """Cria um card de saldo final com cor de fundo customizada."""
-    st.markdown(f"""
-    <div class="balance-card" style="background: {background_color};">
-        <div class="balance-title">{title}</div>
-        <div class="balance-value">{value}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
 
 def render_dashboard():
     st.markdown("""
     <style>
-    .metric-card {
-        background: linear-gradient(135deg, #FF8C00, #1E1E1E);
-        border-radius: 12px; padding: 25px; color: white;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: all 0.3s ease-in-out;
-        margin-bottom: 10px;
+    .custom-card {
+        border-radius: 12px;
+        padding: 20px; /* AJUSTE: Padding ajustado */
+        color: white;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        margin-bottom: 20px;
+        height: 165px; /* AJUSTE: Altura fixa para todos os cards principais */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .metric-card:hover { transform: scale(1.03); box-shadow: 0 8px 16px rgba(0,0,0,0.3); }
-    .metric-title { font-size: 1.1em; font-weight: 500; margin-bottom: 8px; opacity: 0.9; }
-    .metric-value { font-size: 1.9em; font-weight: 700; line-height: 1.2; white-space: nowrap; }
-    .balance-panel {
-        border-radius: 12px; padding: 20px; margin-bottom: 10px;
-        border: 1px solid #ddd;
-    }
-    .balance-panel.credits { background-color: #E8F5E9; border-left: 5px solid #4CAF50; }
-    .balance-panel.debits { background-color: #FFF3E0; border-left: 5px solid #FF9800; }
-    .balance-panel h3 { margin-top: 0; }
-    .balance-card {
-        border-radius: 12px; padding: 25px; color: white; text-align: center;
-        margin-bottom: 10px;
-    }
-    .balance-title { font-size: 1.2em; font-weight: 600; margin-bottom: 8px; }
-    .balance-value { font-size: 2.3em; font-weight: 700; }
-    .stProgress > div > div > div > div {
-        background-image: linear-gradient(to right, #4CAF50, #8BC34A);
-    }
-    .debits-progress .stProgress > div > div > div > div {
-        background-image: linear-gradient(to right, #FF9800, #FFC107);
-    }
+    .card-title { font-size: 1.1em; font-weight: 500; opacity: 0.9; } /* AJUSTE: Fonte do título */
+    .card-value { font-size: 2.2em; font-weight: 700; line-height: 1.2; } /* AJUSTE: Fonte do valor */
+    .card-subtitle { font-size: 0.9em; opacity: 0.8; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
-    st.header("📊 Dashboard Geral")
+    st.header("📊 Dashboard Estratégico")
+    st.markdown("---")
+    
     totals = calculate_global_totals()
 
-    st.subheader("Visão Geral")
-    cols = st.columns(5)
-    with cols[0]: styled_metric(title="Total de Vendas", value=format_currency(totals.get('total_vendas', 0)), icon="💰")
-    with cols[1]: styled_metric(title="Total Recebido", value=format_currency(totals.get('total_recebido', 0)), icon="✅")
-    with cols[2]: styled_metric(title="Total a Receber", value=format_currency(totals.get('total_a_receber', 0)), icon="⏳")
-    with cols[3]: styled_metric(title="Total de Custos", value=format_currency(totals.get('total_custos', 0)), icon="🛒")
-    with cols[4]: styled_metric(title="Total de Despesas", value=format_currency(totals.get('total_despesas', 0)), icon="🧾")
-    
-    st.subheader("Resultados Financeiros e Caixa")
-    cols = st.columns(4)
-    with cols[0]: styled_metric(title="Lucro Bruto", value=format_currency(totals.get('lucro_bruto', 0)), icon="📈")
-    with cols[1]: styled_metric(title="Lucro Líquido", value=format_currency(totals.get('lucro_liquido', 0)), icon="🎯")
-    with cols[2]: styled_metric(title="% de Lucro", value=f"{totals.get('percentual_lucro', 0):.2f}%", icon="💡")
-    
-    # ESTE É O CARD QUE ESTAVA FALTANDO
-    with cols[3]:
-        styled_metric(
-            title="Saldo Total em Contas",
-            value=format_currency(totals.get('total_saldo_bancario', 0)),
-            icon="🏦"
+    col1, col2, col3 = st.columns(3)
+
+    # --- COLUNA 1: ATIVOS (O QUE VOCÊ TEM) ---
+    with col1:
+        st.subheader("↙️ Disponível (Caixa + A Receber)")
+        styled_card(
+            title="Saldo em Contas Bancárias",
+            value=format_brl(totals['total_saldo_bancario']),
+            subtitle="Dinheiro em caixa hoje", icon="🏦",
+            bg_color="linear-gradient(135deg, #007bff, #0056b3)"
+        )
+        styled_card(
+            title="Saldo de Clientes a Receber",
+            value=format_brl(totals['total_a_receber']),
+            subtitle="Créditos pendentes", icon="⏳",
+            bg_color="linear-gradient(135deg, #ffc107, #d39e00)"
+        )
+        styled_card(
+            title="TOTAL DISPONÍVEL",
+            value=format_brl(totals['total_disponivel']),
+            subtitle="Caixa Atual + Futuras Entradas", icon="💰",
+            bg_color="linear-gradient(135deg, #28a745, #1e7e34)"
         )
 
-    st.divider()
-
-    st.subheader("Balanço Financeiro")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="balance-panel credits">', unsafe_allow_html=True)
-        st.markdown("<h3>✅ Créditos (Entradas)</h3>", unsafe_allow_html=True)
-        total_entradas = totals.get('creditos_realizado', 0) + totals.get('creditos_pendente', 0)
-        st.metric(label="Potencial de Vendas", value=format_currency(total_entradas))
-        percent_realizado_cr = (totals.get('creditos_realizado', 0) / total_entradas) if total_entradas > 0 else 0
-        st.progress(percent_realizado_cr, text=f"{percent_realizado_cr:.0%} Realizado")
-        st.markdown('</div>', unsafe_allow_html=True)
-
+    # --- COLUNA 2: PASSIVOS (O QUE VOCÊ DEVE) ---
     with col2:
-        st.markdown('<div class="balance-panel debits">', unsafe_allow_html=True)
-        st.markdown("<h3>❌ Débitos (Saídas)</h3>", unsafe_allow_html=True)
-        total_saidas = totals.get('total_pago_geral', 0) + totals.get('total_a_pagar_geral', 0)
-        st.metric(label="Total de Saídas Previstas", value=format_currency(total_saidas))
-        percent_realizado_db = (totals.get('total_pago_geral', 0) / total_saidas) if total_saidas > 0 else 0
-        st.markdown('<div class="debits-progress">', unsafe_allow_html=True)
-        st.progress(percent_realizado_db, text=f"{percent_realizado_db:.0%} Realizado")
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with st.expander("Ver detalhamento de Créditos e Débitos"):
-        sub_col1, sub_col2 = st.columns(2)
-        with sub_col1:
-            st.markdown("#### Detalhes de Créditos")
-            st.metric("Recebido de Clientes (Realizado)", format_currency(totals.get('creditos_realizado', 0)))
-            st.metric("A Receber de Clientes (Pendente)", format_currency(totals.get('creditos_pendente', 0)))
-            
-        with sub_col2:
-            st.markdown("#### Detalhes de Débitos")
-            st.metric("Pago a Fornecedores (Realizado)", format_currency(totals.get('debitos_pago_custos', 0)))
-            st.metric("Pago de Despesas (Realizado)", format_currency(totals.get('debitos_pago_despesas', 0)))
-            st.metric("A Pagar a Fornecedores (Pendente)", format_currency(totals.get('debitos_pendente_custos', 0)))
-            st.metric("A Pagar de Despesas (Pendente)", format_currency(totals.get('debitos_pendente_despesas', 0)))
-
-    st.divider()
-
-    st.subheader("Balanço de Caixa (Projeção Final)")
-    col1, col2 = st.columns(2)
-    with col1:
-        cor_saldo_realizado = "linear-gradient(135deg, #2E7D32, #4CAF50)"
-        styled_balance_card(
-            title="Saldo de Caixa Atual (Realizado)",
-            value=format_currency(totals.get('saldo_realizado', 0)),
-            background_color=cor_saldo_realizado
+        st.subheader("↗️ Dívidas (Custos + Despesas a Pagar)")
+        styled_card(
+            title="Saldo de Custos a Pagar",
+            value=format_brl(totals['debitos_pendente_custos']),
+            subtitle="Dívida com Fornecedores", icon="🛒",
+            bg_color="linear-gradient(135deg, #dc3545, #a71d2a)"
         )
-    with col2:
-        cor_saldo_futuro = "linear-gradient(135deg, #1565C0, #42A5F5)"
-        if totals.get('balanco_futuro', 0) < 0:
-            cor_saldo_futuro = "linear-gradient(135deg, #C62828, #F44336)"
-        styled_balance_card(
-            title="Balanço Futuro (Projeção)",
-            value=format_currency(totals.get('balanco_futuro', 0)),
-            background_color=cor_saldo_futuro
+        styled_card(
+            title="Saldo de Despesas a Pagar",
+            value=format_brl(totals['debitos_pendente_despesas']),
+            subtitle="Impostos, comissões, etc.", icon="🧾",
+            bg_color="linear-gradient(135deg, #fd7e14, #c7640f)"
+        )
+        styled_card(
+            title="TOTAL A PAGAR",
+            value=format_brl(totals['total_a_pagar_geral']),
+            subtitle="Total de Dívidas Pendentes", icon="💸",
+            bg_color="linear-gradient(135deg, #6f42c1, #59369a)"
+        )
+
+    # --- COLUNA 3: SAÚDE FINANCEIRA (COM ALINHAMENTO CORRIGIDO) ---
+    with col3:
+        st.subheader("📊 Saúde Financeira")
+        
+        cor_provisao = "linear-gradient(135deg, #17a2b8, #117a8b)"
+        if totals['provisao_saldo_final'] < 0:
+            cor_provisao = "linear-gradient(135deg, #343a40, #23272b)"
+        
+        # 1. Card de Provisão de Saldo Final (agora alinhado no topo)
+        styled_card(
+            title="PROVISÃO DE SALDO FINAL",
+            value=format_brl(totals['provisao_saldo_final']),
+            subtitle="(Total Disponível - Total a Pagar)", icon="🎯",
+            bg_color=cor_provisao
+        )
+        
+        # 2. Novos Cards para Lucro e Margem
+        styled_card(
+            title="Lucro Líquido Total",
+            value=format_brl(totals['lucro_liquido']),
+            subtitle="Soma do lucro de todos os projetos", icon="✨",
+            bg_color="linear-gradient(135deg, #20c997, #1ba784)" # Tom de verde-água
+        )
+
+        styled_card(
+            title="Margem de Lucro Média",
+            value=f"{totals['percentual_lucro']:.2f}%",
+            subtitle="(Lucro Líquido / Vendas)", icon="💡",
+            bg_color="linear-gradient(135deg, #e83e8c, #bf3474)" # Rosa/Magenta
         )

@@ -1,8 +1,8 @@
-# ui_despesas.py (Versão com a correção do NameError)
+# ui_despesas.py (Versão completa com botão de exclusão)
 import streamlit as st
 import pandas as pd
 from datetime import date
-from database import get_all_vendas_options, add_despesa_paga, get_data_as_dataframe, get_config
+from database import get_all_vendas_options, add_despesa_paga, get_data_as_dataframe, get_config, delete_despesa_paga
 from calculations import calculate_venda_totals
 
 def format_brl(value):
@@ -60,20 +60,35 @@ def render_despesas():
             with st.container(border=True):
                 pago_neste_tipo = totals.get('pagamentos_despesa_por_tipo', {}).get(tipo, 0)
                 saldo_a_pagar = valor_calculado - pago_neste_tipo
-
                 st.markdown(f"<h5>{tipo.capitalize()}</h5>", unsafe_allow_html=True)
-                
                 sub_cols = st.columns(3)
                 sub_cols[0].metric("Valor Calculado", format_brl(valor_calculado))
                 sub_cols[1].metric("Valor Pago", format_brl(pago_neste_tipo))
-                # A CORREÇÃO FOI FEITA AQUI: 'saldo_a_parar' virou 'saldo_a_pagar'
                 sub_cols[2].metric("Saldo a Pagar", format_brl(saldo_a_pagar))
     
     st.divider()
 
+    # --- SEÇÃO DE HISTÓRICO ATUALIZADA ---
     st.subheader("Histórico de Pagamentos de Despesas")
-    hist_pag_despesas = get_data_as_dataframe("SELECT data_pagamento, tipo_despesa, valor FROM despesas_pagas WHERE venda_id = ? ORDER BY data_pagamento DESC", (venda_id,))
+    hist_pag_despesas = get_data_as_dataframe("SELECT id, data_pagamento, tipo_despesa, valor FROM despesas_pagas WHERE venda_id = ? ORDER BY data_pagamento DESC", (venda_id,))
+    
     if hist_pag_despesas.empty:
         st.info("Nenhum pagamento de despesa registrado para esta venda.")
     else:
-        st.dataframe(hist_pag_despesas, use_container_width=True)
+        header_cols = st.columns([0.25, 0.3, 0.3, 0.15])
+        header_cols[0].markdown("**Data**")
+        header_cols[1].markdown("**Tipo de Despesa**")
+        header_cols[2].markdown("**Valor Pago**")
+        header_cols[3].markdown("**Ações**")
+        st.divider()
+        
+        for _, row in hist_pag_despesas.iterrows():
+            cols = st.columns([0.25, 0.3, 0.3, 0.15])
+            cols[0].write(pd.to_datetime(row['data_pagamento']).strftime('%d/%m/%Y'))
+            cols[1].write(row['tipo_despesa'].capitalize())
+            cols[2].write(format_brl(row['valor']))
+            
+            if cols[3].button("🗑️", key=f"del_desp_{row['id']}", help="Excluir este pagamento"):
+                delete_despesa_paga(row['id'])
+                st.success("Pagamento de despesa excluído.")
+                st.rerun()
