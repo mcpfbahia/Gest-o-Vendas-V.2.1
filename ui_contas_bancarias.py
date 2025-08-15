@@ -1,7 +1,7 @@
-# ui_contas_bancarias.py (Versão completa com botão de exclusão)
+# ui_contas_bancarias.py (Versão com correção no lançamento manual)
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 from database import add_conta_bancaria, get_saldo_contas, add_transacao_bancaria, get_data_as_dataframe, delete_transacao_bancaria
 
 def format_brl(value):
@@ -23,7 +23,7 @@ def render_contas_bancarias():
             if st.form_submit_button("Adicionar Conta"):
                 if nome_banco:
                     add_conta_bancaria({
-                        'nome_bancario': nome_banco, 'agencia': agencia, 
+                        'nome_banco': nome_banco, 'agencia': agencia, 
                         'conta': conta, 'saldo_inicial': saldo_inicial
                     })
                     st.success(f"Conta '{nome_banco}' adicionada com sucesso!")
@@ -40,6 +40,7 @@ def render_contas_bancarias():
     else:
         num_contas = len(saldos_df)
         cols = st.columns(num_contas if num_contas > 0 else 1)
+        
         for i, row in saldos_df.iterrows():
             col_index = i % (num_contas if num_contas > 0 else 1)
             with cols[col_index]:
@@ -64,17 +65,23 @@ def render_contas_bancarias():
                 tipo = cols[0].selectbox("Tipo de Lançamento*", ["Entrada", "Saída"])
                 desc = cols[1].text_input("Descrição*", help="Ex: Pagamento de conta de luz, Aporte de sócio")
                 valor = cols[2].number_input("Valor*", min_value=0.01, format="%.2f")
-                data_transacao = cols[3].date_input("Data*", value=date.today())
+                data_transacao = cols[3].date_input("Data*", value=date.today(), format="DD/MM/YYYY")
                 
                 if st.form_submit_button("Registrar Lançamento"):
-                    add_transacao_bancaria({
-                        'conta_id': conta_selecionada_id, 'data': str(data_transacao),
-                        'tipo': tipo, 'descricao': desc, 'valor': valor
-                    })
+                    # A CORREÇÃO ESTÁ AQUI: O dicionário agora está completo
+                    dados_transacao = {
+                        'conta_id': conta_selecionada_id, 
+                        'data': str(data_transacao),
+                        'tipo': tipo, 
+                        'descricao': desc, 
+                        'valor': valor,
+                        'venda_id': None, # Explícito que não há venda
+                        'plano_recebimento_id': None # Explícito que não há parcela
+                    }
+                    add_transacao_bancaria(dados_transacao)
                     st.success("Transação registrada!")
                     st.rerun()
         
-        # --- SEÇÃO DE EXTRATO ATUALIZADA ---
         st.subheader("Extrato da Conta")
         extrato_df = get_data_as_dataframe(
             "SELECT id, data, tipo, descricao, valor FROM transacoes_bancarias WHERE conta_id = ? ORDER BY data DESC, id DESC",
@@ -100,7 +107,6 @@ def render_contas_bancarias():
                 else:
                     cols[3].error(f"-{valor_str}")
                 
-                # Não permite excluir o "Saldo Inicial" para manter a integridade
                 if 'Saldo Inicial' not in row['descricao']:
                     if cols[4].button("🗑️", key=f"del_trans_{row['id']}", help="Excluir esta transação"):
                         delete_transacao_bancaria(row['id'])

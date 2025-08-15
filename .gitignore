@@ -1,0 +1,13 @@
+# Arquivos de Banco de Dados
+*.db
+*.sqlite3
+
+# Pasta de segredos locais
+.streamlit/
+
+# Arquivos temporários do Python
+__pycache__/
+*.pyc
+
+# Outros arquivos de ambiente
+.env
